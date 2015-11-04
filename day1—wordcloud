@@ -3,6 +3,7 @@
 ## -----------------------------------------
 
 library(plyr)
+library(dplyr)
 library(ggplot2)
 library(tm)
 library(wordcloud)
@@ -46,10 +47,11 @@ View(tweets)
 ## prepare for wordcloud
 ## -----------------------------------------
 
-## this code is borrowed from Dr. Chin-Hsi Lin at Michigan State University
+## this code is (mostly) borrowed from Dr. Chin-Hsi Lin at Michigan State University
 ## you can connect with him at @chinhsil or http://www.researchgate.net/profile/Chin_Hsi_Lin
 
 tweetsCorpus <- Corpus(VectorSource(tweets$text))
+tweetsCorpus
 inspect(tweetsCorpus)
 tweetsCorpus <- tm_map(tweetsCorpus,
                          content_transformer(function(x) iconv(x, to='UTF-8-MAC', sub='byte')),
@@ -67,7 +69,10 @@ tweetsTDM <- TermDocumentMatrix(tweetsCorpus, control=list(minWordLength =1))
 inspect(tweetsTDM)
 
 tweetsMatrix = as.matrix(tweetsTDM)
-# View(tweetsMatrix)
+
+match(c("aect","aect2015","aect15"),rownames(tweetsMatrix))
+
+tweetsMatrix <- tweetsMatrix[-c(32:34),]
 
 word_freqs = sort(rowSums(tweetsMatrix),decreasing=TRUE)
 tweetsFrame = data.frame(word=names(word_freqs),freq=word_freqs)
