@@ -1,0 +1,80 @@
+## -----------------------------------------
+## load packages, set workspace
+## -----------------------------------------
+
+library(plyr)
+library(ggplot2)
+library(tm)
+library(wordcloud)
+
+setwd("/Users/spgreenhalgh/Desktop")
+
+## -----------------------------------------
+## import data
+## -----------------------------------------
+
+tweets <- read.csv("AECT_day1.csv")
+View(tweets)
+
+tweets <- tweets[,2:3] ## reduce the CSV to the username and text of each tweet
+View(tweets)
+
+## -----------------------------------------
+## clean duplicate tweets
+## -----------------------------------------
+
+## TAGS is a great tool, but one thing that we've noticed is that it tends to snag duplicates
+## a function like unique() might work, but we feel like a word should count each time it's retweeted, and unique() would get rid of any retweet beyond the first
+## this for loop is a simple (if rough) way to check for duplicates by comparing each tweet AND tweeter with the values in the row above
+## if both (and only both) match, it gets rid of one of the two rows
+
+for(i in length(tweets$text):2){
+  currentTweet <- tweets[i,2]
+  aboveTweet <- tweets[i-1,2]
+  currentTweeter <- tweets[i,1]
+  aboveTweeter <- tweets[i-1,1]
+  if(currentTweet == aboveTweet & currentTweeter == aboveTweeter){
+    print("caught")
+    tweets <<- tweets[-i,]
+  }
+  print("tick")
+}
+
+View(tweets)
+
+## -----------------------------------------
+## prepare for wordcloud
+## -----------------------------------------
+
+## this code is borrowed from Dr. Chin-Hsi Lin at Michigan State University
+## you can connect with him at @chinhsil or http://www.researchgate.net/profile/Chin_Hsi_Lin
+
+tweetsCorpus <- Corpus(VectorSource(tweets$text))
+inspect(tweetsCorpus)
+tweetsCorpus <- tm_map(tweetsCorpus,
+                         content_transformer(function(x) iconv(x, to='UTF-8-MAC', sub='byte')),
+                         mc.cores=1
+)
+
+tweetsCorpus <- tm_map(tweetsCorpus, PlainTextDocument)
+tweetsCorpus <- tm_map(tweetsCorpus, stripWhitespace,lazy=TRUE)
+tweetsCorpus <- tm_map(tweetsCorpus, content_transformer(tolower),lazy=TRUE)
+tweetsCorpus <- tm_map(tweetsCorpus, removePunctuation,lazy=TRUE)
+tweetsCorpus <- tm_map(tweetsCorpus, function(x)removeWords(x,stopwords()),lazy=TRUE)
+
+tweetsTDM <- TermDocumentMatrix(tweetsCorpus, control=list(minWordLength =1))
+
+inspect(tweetsTDM)
+
+tweetsMatrix = as.matrix(tweetsTDM)
+# View(tweetsMatrix)
+
+word_freqs = sort(rowSums(tweetsMatrix),decreasing=TRUE)
+tweetsFrame = data.frame(word=names(word_freqs),freq=word_freqs)
+# View(tweetsFrame)
+
+## -----------------------------------------
+## generate wordcloud
+## -----------------------------------------
+
+wordcloud(tweetsFrame$word, tweetsFrame$freq, min.freq=5)
