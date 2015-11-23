@@ -1,2 +1,2 @@
 # aect-tweets
-experimenting with tweets from #aect15 with Josh Rosenberg
+playing around with tweets and their data
