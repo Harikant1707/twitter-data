@@ -1,0 +1,170 @@
+## -----------------------------------------
+## load packages, set workspace
+## -----------------------------------------
+library(plyr)
+library(rvest)
+library(XML)
+library(tm)
+library(spatial)
+library(sp)
+library(ggmap)
+library(maps)
+library(choroplethr)
+library(choroplethrMaps)
+setwd("/Users/spgreenhalgh/Google Drive/6) Learner/CEP 991: Online Research Methods/Week 10")
+
+## -----------------------------------------
+## import, clean data
+## -----------------------------------------
+
+tweetsData <- read.csv("educattentats.csv")
+View(tweetsData)
+
+for(i in length(tweetsData$text):2){
+  currentTweeter <- tweetsData[i,2]
+  aboveTweeter <- tweetsData[i - 1,2]
+  currentStatus <- tweetsData[i,16]
+  aboveStatus <- tweetsData[i - 1,16]
+  if(identical(currentTweeter,aboveTweeter) & identical(currentStatus, aboveStatus)){
+    print("caught")
+    tweetsData <<- tweetsData[-i,]
+  }
+  print("tick")
+}
+
+# View(tweetsData)
+
+## -----------------------------------------
+## collect info on users
+## -----------------------------------------
+
+userList <- unique(tweetsData$from_user)
+length(userList)
+
+## -----------------------------------------
+## scraper function profile pages
+## -----------------------------------------
+
+profileScraper <- function(twitterHandleList){
+  handleList <- c()
+  locationList <- c()
+  profileList <- c()
+  for(i in 1:length(twitterHandleList)){ ##length(twitterHandleList)
+    twitterHandle <- toString(twitterHandleList[i])
+    print(twitterHandle)
+    userPageURL <- paste0("http://twitter.com/",twitterHandle)
+    userPage <- NULL
+    try(userPage <- read_html(userPageURL))
+    if(is.null(userPage)){
+      next
+    }
+    handleList <- c(handleList, twitterHandle)
+    # userPage <- read_html(userPage)
+    location <- html_nodes(userPage, xpath = "//span[@class='ProfileHeaderCard-locationText u-dir']")
+    location <- html_text(location)
+    location
+    location <- substr(location,16,nchar(location)-11)
+    locationList <- c(locationList, location)
+    profile <- html_nodes(userPage, xpath = "//p[@class='ProfileHeaderCard-bio u-dir']")
+    profile <- html_text(profile)
+    profileList <- c(profileList, profile)
+    print(i)
+  }
+  assign("profileFrame",data.frame("handle" = as.character(handleList), "location" = locationList, "profile" = profileList, stringsAsFactors = FALSE),envir = .GlobalEnv)
+}
+
+profileFrame$location
+
+## -----------------------------------------
+## scrape 'em 
+## -----------------------------------------
+
+profileScraper(userList)
+# View(profileFrame)
+# write.csv(profileFrame, "twitterLocations.csv")
+
+## -----------------------------------------
+## clean for locations
+## -----------------------------------------
+
+locationFrame <- profileFrame[profileFrame$location != "",]
+# locationFrame <- profileFrame[profileFrame$location != "  \n ",]
+View(locationFrame)
+
+## -----------------------------------------
+## convert locations to latitude and longitude
+## -----------------------------------------
+
+locationFinder <- function(locationList){
+  statusList <- c()
+  addressList <- c()
+  longList <- c()
+  latList <- c()
+  locationTypeList <- c()
+  for(i in 1:length(locationList$location)){
+    input <- toString(locationList$location[i])
+    print(input)
+    ##set temporary nulls
+    tempGeo <- geocode(input, output = "all")
+    tempAddress <- "n/a"
+    tempLong <- "n/a"
+    tempLat <- "n/a"
+    tempLocationType <- "n/a"
+    ## grab status
+    tempStatus <- tempGeo$status
+    # print(tempStatus)
+    statusList <- c(statusList, tempStatus)
+    if(tempStatus == "OK")
+    {
+      if(!is.null(tempGeo$results[[1]]$address_components[[1]]$long_name)){
+        tempAddress <- tempGeo$results[[1]]$address_components[[1]]$long_name  
+      }
+      if(!is.null(tempGeo$results[[1]]$geometry$location$lng)){
+        tempLong <- tempGeo$results[[1]]$geometry$location$lng
+      }
+      if(!is.null(tempGeo$results[[1]]$geometry$location$lat)){
+        tempLat <- tempGeo$results[[1]]$geometry$location$lat
+      }
+      if(!is.null(tempGeo$results[[1]]$geometry$location_type)){
+        tempLocationType <- tempGeo$results[[1]]$geometry$location_type
+      }
+      
+    }
+    addressList <- c(addressList, tempAddress)
+    longList <- c(longList, tempLong)
+    latList <- c(latList, tempLat)
+    locationTypeList <- c(locationTypeList, tempLocationType)
+    print(i)
+    if(i != length(addressList)){
+      break
+    }
+  }
+  assign("geoFrame",data.frame("handle" = locationFrame$handle, "location" = locationFrame$location, "profile" = locationFrame$profile, "status" = statusList, "address" = addressList, "longitude" = longList, "latitude" = latList, "locationType" = locationTypeList),envir = .GlobalEnv)
+}
+
+## -----------------------------------------
+## get coordinates
+## -----------------------------------------
+
+locationFinder(locationFrame)
+View(geoFrame)
+# write.csv(geoFrame, "geoFrame.csv")
+geoFrame <- read.csv("geoFrame.csv", stringsAsFactors = FALSE)
+geoFrame <- geoFrame[geoFrame$status == "OK",]
+View(geoFrame)
+
+## -----------------------------------------
+## plot to map (maps package)
+## -----------------------------------------
+
+map("world")
+points(geoFrame$longitude,geoFrame$latitude, pch=20, cex=1, col="red")
+
+## -----------------------------------------
+## plot to map (Google Maps)
+## -----------------------------------------
+
+map <- get_googlemap(center = "France", zoom = 3)
+ggmap(map) + geom_point(aes(x = as.numeric(longitude), y = as.numeric(latitude)), data = geoFrame, colour = "red", size = 2)
+
+length(geoFrame$longitude)
