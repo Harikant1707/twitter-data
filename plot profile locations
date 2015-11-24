@@ -164,7 +164,7 @@ points(geoFrame$longitude,geoFrame$latitude, pch=20, cex=1, col="red")
 ## plot to map (Google Maps)
 ## -----------------------------------------
 
-map <- get_googlemap(center = "France", zoom = 3)
+map <- get_googlemap(center = "France", zoom = 6)
 ggmap(map) + geom_point(aes(x = as.numeric(longitude), y = as.numeric(latitude)), data = geoFrame, colour = "red", size = 2)
 
 length(geoFrame$longitude)
