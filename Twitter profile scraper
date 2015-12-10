@@ -1,0 +1,162 @@
+## -----------------------------------------
+## load packages, set workspace
+## -----------------------------------------
+library(XML)
+library(rvest)
+library(stringr)
+setwd("~/MAET_Twitter")
+
+## -----------------------------------------
+## collect list of users
+## -----------------------------------------
+
+userList <- read.csv("MAET_users.csv")
+# View(userList)
+userList <- userList$x
+userList
+## -----------------------------------------
+## scraper function profile pages
+## -----------------------------------------
+
+profileScraper <- function(twitterHandleList){
+  handleList <- c()
+  locationList <- c()
+  profileList <- c()
+  nameList <- c()
+  URLList <- c()
+  joinDateList <- c()
+  numTweetsList <- c()
+  numFollowingList <- c()
+  numFollowersList <- c()
+  numLikesList <- c()
+  for(i in 1:length(twitterHandleList)){ ##length(twitterHandleList) length(twitterHandleList)
+    twitterHandle <- toString(twitterHandleList[i])
+    userPageURL <- paste0("http://twitter.com/",twitterHandle)
+    userPage <- NULL
+    try(userPage <- read_html(userPageURL))
+    if(is.null(userPage)){
+      next
+    }
+    handleList <- c(handleList, twitterHandle)
+    ## location ##
+    location <- html_nodes(userPage, xpath = "//span[@class='ProfileHeaderCard-locationText u-dir']")
+    if(length(location) > 0){
+      location <- html_text(location)
+      location
+#       location <- substr(location,16,nchar(location)-11)
+    }
+    if(length(location) == 0){
+      location <- "n/a"
+    }
+    locationList <- c(locationList, location)
+    ## profile ##
+    profile <- html_nodes(userPage, xpath = "//p[@class='ProfileHeaderCard-bio u-dir']")
+    if(length(profile) > 0){
+      profile <- html_text(profile) 
+    }
+    if(length(profile) == 0){
+      profile <- "n/a"
+    }
+    profileList <- c(profileList, profile)
+    ## name ##
+    name <- html_nodes(userPage, xpath = "//h1[@class='ProfileHeaderCard-name']")
+    if(length(name) > 0){
+      name <- html_text(name)
+#       name <- substr(name,6,nchar(name)-3)
+    }
+    if(length(name) == 0){
+      name <- "n/a"
+    }
+    nameList <- c(nameList, name)
+    ## URL ##
+    URL <- html_nodes(userPage, xpath ="//span[@class='ProfileHeaderCard-urlText u-dir']")
+    if(length(URL) > 0){
+      URL <- html_text(URL)
+#       URL <- substr(URL,8,nchar(URL)-5)
+    }
+    if(length(URL) == 0){
+      URL <- "n/a"
+    }
+    URLList <- c(URLList, URL)
+    ## joinDate ##
+    joinDate <- html_nodes(userPage, xpath ="//span[@class='ProfileHeaderCard-joinDateText js-tooltip u-dir']")
+    if(length(joinDate) > 0){
+      joinDate <- html_attr(joinDate,"title")
+    }
+    if(length(joinDate) == 0){
+      joinDate <- "n/a"
+    }
+    joinDateList <- c(joinDateList, joinDate)
+    ## numTweets ##
+    numTweets <- html_nodes(userPage, xpath ="//a[@class='ProfileNav-stat ProfileNav-stat--link u-borderUserColor u-textCenter js-tooltip js-nav']")
+    if(length(numTweets) > 0){
+      numTweets <- html_attr(numTweets,"title")
+#       numTweets <- substr(numTweets,1,nchar(numTweets)-7)
+#       numTweets <- str_replace_all(numTweets,",","")
+#       numTweets <- as.numeric(numTweets)
+    }
+    if(length(numTweets) == 0){
+      numTweets <- "n/a"
+    }
+    numTweetsList <- c(numTweetsList, numTweets)
+    ## numFollowing ##
+    numFollowing <- html_nodes(userPage, xpath ="//a[@data-nav='following']")
+    if(length(numFollowing) > 0){
+      numFollowing <- html_attr(numFollowing,"title")
+#       numFollowing <- substr(numFollowing,1,nchar(numFollowing)-10)
+#       numFollowing <- str_replace_all(numFollowing,",","")
+#       numFollowing <- as.numeric(numFollowing)
+    }
+    if(length(numFollowing) == 0){
+      numFollowing <- "n/a"
+    }
+    numFollowingList <- c(numFollowingList, numFollowing)
+    ## numFollowers ##
+    numFollowers <- html_nodes(userPage, xpath ="//a[@data-nav='followers']")
+    if(length(numFollowers) > 0){
+      numFollowers <- html_attr(numFollowers,"title")
+#       numFollowers <- substr(numFollowers,1,nchar(numFollowers)-10)
+#       numFollowers <- str_replace_all(numFollowers,",","")
+#       numFollowers <- as.numeric(numFollowers)
+    }
+    if(length(numFollowers) == 0){
+      numFollowers <- "n/a"
+    }
+    numFollowersList <- c(numFollowersList, numFollowers)
+    ## numLikes ##
+    numLikes <- html_nodes(userPage, xpath ="//a[@data-nav='favorites']")
+    if(length(numLikes) > 0){
+      numLikes <- html_attr(numLikes,"title")
+#       numLikes <- substr(numLikes,1,nchar(numLikes)-6)
+#       numLikes <- str_replace_all(numLikes,",","")
+#       numLikes <- as.numeric(numLikes)
+    }
+    if(length(numLikes) == 0){
+      numLikes <- "n/a"
+    }
+    numLikesList <- c(numLikesList, numLikes)
+    ## print ##
+    print(paste0(i," out of ",length(twitterHandleList)))
+  }
+#   print(length(handleList))
+#   print(length(locationList))
+#   print(length(profileList))
+#   print(length(nameList))
+#   print(length(URLList))
+#   print(length(joinDateList))
+#   print(length(numTweetsList))
+#   print(length(numFollowingList))
+#   print(length(numFollowersList))
+#   print(length(numLikesList))
+  assign("profileFrame",data.frame("handle" = as.character(handleList), "name" = nameList, "location" = locationList, "profile" = profileList, "URL" = URLList, "joinDate" = joinDateList, "numTweets" = numTweetsList, "numFollowing" = numFollowingList, "numFollowers" = numFollowersList, "numLikes" = numLikesList, stringsAsFactors = FALSE),envir = .GlobalEnv)
+}
+
+str(profileFrame)
+
+## -----------------------------------------
+## scrape 'em 
+## -----------------------------------------
+
+profileScraper(userList)
+View(profileFrame)
+write.csv(profileFrame, "twitterProfiles.csv")
