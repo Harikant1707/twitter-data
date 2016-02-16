@@ -1,0 +1,70 @@
+## -----------------------------------------
+## load packages, set workspace
+## -----------------------------------------
+library(XML)
+library(rvest)
+
+## -----------------------------------------
+## import data
+## -----------------------------------------
+
+## I'm importing data from a CSV of tweets data pulled from a Twitter Archiving Google Sheet (TAGS)
+## you'll want to edit code based on where you're getting tweets from
+
+tweetList <- read.csv("tweetURLS.csv", stringsAsFactors = FALSE)
+# View(tweetList)
+
+tweetList <- tweetList$URL
+
+## -----------------------------------------
+## count likes / retweets
+## -----------------------------------------
+
+tweetScraper <- function(tweetList){
+  textList <- c()
+  userList <- c()
+  timeList <- c()
+  likeList <- c()
+  retweetList <- c()
+  for(i in 1:length(tweetList)){
+    tweetPageURL <- tweetList[[i]]
+    tweetPage <- NULL
+    try(tweetPage <- read_html(tweetPageURL))
+    if(is.null(tweetPage)){
+      print("red alert")
+      next
+    }
+    
+    text <- html_nodes(read_html(tweetList[i]), xpath = "//meta[@property='og:description']")
+    if(length(text) == 0){
+      next
+    }
+    text <- html_attr(text,"content")
+    
+    textList <- c(textList, text)
+    
+    user <- html_nodes(read_html(tweetList[i]), xpath = "//span[@class='username js-action-profile-name']")
+    user <- html_text(user)[1]
+    
+    userList <- c(userList, user)
+    
+    time <- html_nodes(read_html(tweetList[i]), xpath = "//span[@class='_timestamp js-short-timestamp ']")
+    time <- html_attr(time, "data-time")[1]
+    
+    timeList <- c(timeList, time)
+    
+    activity <- html_nodes(read_html(tweetList[i]), xpath = "//span[@class='ProfileTweet-actionCount']")
+    activity <- as.numeric(html_attr(activity,"data-tweet-stat-count")[1:2])
+    
+    likeList <- c(likeList, activity[1])
+    retweetList <- c(retweetList, activity[2])
+    
+    ## print ##
+    print(paste0(i," out of ",length(tweetList)))
+  }
+  assign("tweetFrame",data.frame("text" = textList, "user" = userList, "time" = timeList, "like" = likeList, "retweet" = retweetList, stringsAsFactors = FALSE),envir = .GlobalEnv)
+}
+
+tweetScraper(tweetList)
+
+View(tweetFrame)
